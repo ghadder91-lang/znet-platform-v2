@@ -1,0 +1,4 @@
+import {createCipheriv,createDecipheriv,randomBytes,createHash} from 'node:crypto';
+export function sealValue(value,key,aad){const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',Buffer.from(key,'base64'),iv);cipher.setAAD(Buffer.from(aad));const body=Buffer.concat([cipher.update(JSON.stringify(value),'utf8'),cipher.final()]);return iv.toString('base64')+'.'+Buffer.concat([body,cipher.getAuthTag()]).toString('base64');}
+export function unsealValue(value,key,aad){const [iv,encoded]=value.split('.'),bytes=Buffer.from(encoded,'base64'),decipher=createDecipheriv('aes-256-gcm',Buffer.from(key,'base64'),Buffer.from(iv,'base64'));decipher.setAAD(Buffer.from(aad));decipher.setAuthTag(bytes.subarray(-16));return JSON.parse(Buffer.concat([decipher.update(bytes.subarray(0,-16)),decipher.final()]).toString('utf8'));}
+export const deriveSandboxKey=key=>createHash('sha256').update(Buffer.from(key,'base64')).update('znet-sandbox-v1').digest('base64');

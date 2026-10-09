@@ -1,0 +1,2 @@
+CREATE INDEX `idx_vouchers_network_status_created` ON `vouchers` (`network_id`,`status`,`created_at`,`id`);--> statement-breakpoint
+CREATE INDEX `idx_vouchers_network_created` ON `vouchers` (`network_id`,`created_at`,`id`);

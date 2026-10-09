@@ -1,0 +1,11 @@
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,existsSync,copyFileSync,mkdirSync,chmodSync,constants} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {createHash} from 'node:crypto';
+import {vaultKey} from '../server/config.mjs';
+const dir=process.argv[2];if(!dir)throw Error('Usage: node scripts/restore.mjs BACKUP_DIRECTORY; destination DATABASE_PATH must not exist.');
+const source=resolve(dir,'znet.sqlite'),target=resolve(process.env.DATABASE_PATH||'data/znet.sqlite');
+if(existsSync(target)||existsSync(target+'-wal')||existsSync(target+'-shm'))throw Error('Refusing to overwrite an existing database. Stop the service and preserve existing database files first.');
+const m=JSON.parse(readFileSync(resolve(dir,'manifest.json'),'utf8'));const hash=b=>createHash('sha256').update(b).digest('hex');if(m.format!==1||m.sha256!==hash(readFileSync(source)))throw Error('Backup integrity mismatch');if(m.keyFingerprint!==hash(Buffer.from(vaultKey(),'base64')))throw Error('Wrong encryption key; use the original key for this backup.');
+const db=new DatabaseSync(source,{readOnly:true});if(db.prepare('PRAGMA integrity_check').get().integrity_check!=='ok'||db.prepare('PRAGMA foreign_key_check').all().length)throw Error('Backup database validation failed');db.close();
+mkdirSync(dirname(target),{recursive:true,mode:0o700});copyFileSync(source,target,constants.COPYFILE_EXCL);chmodSync(target,0o600);console.log('Restored: '+target);

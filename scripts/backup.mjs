@@ -1,0 +1,11 @@
+import {backup} from 'node:sqlite';
+import {mkdirSync,readFileSync,writeFileSync,chmodSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {createHash,randomUUID} from 'node:crypto';
+import {database} from '../server/database.mjs';
+import {vaultKey} from '../server/config.mjs';
+const dir=resolve(process.env.BACKUP_DIR||'backups',new Date().toISOString().replaceAll(':','-')+'-'+randomUUID().slice(0,8));
+const keyFingerprint=createHash('sha256').update(Buffer.from(vaultKey(),'base64')).digest('hex');
+mkdirSync(dir,{recursive:true,mode:0o700});const dest=resolve(dir,'znet.sqlite');await backup(database().sql,dest);chmodSync(dest,0o600);
+const sha256=createHash('sha256').update(readFileSync(dest)).digest('hex');writeFileSync(resolve(dir,'manifest.json'),JSON.stringify({format:1,createdAt:new Date().toISOString(),sha256,keyFingerprint},null,2),{mode:0o600});
+console.log('Backup completed: '+dir);console.log('Copy this directory off the server. The encryption key is NOT included; retain .env separately and securely.');

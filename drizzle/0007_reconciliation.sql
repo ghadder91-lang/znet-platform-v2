@@ -1,0 +1,5 @@
+CREATE TABLE reconciliation_runs(id TEXT PRIMARY KEY,network_id TEXT NOT NULL REFERENCES networks(id),provider TEXT NOT NULL,digest TEXT NOT NULL,start_at INTEGER NOT NULL,end_at INTEGER NOT NULL,complete INTEGER NOT NULL,row_count INTEGER NOT NULL,matched INTEGER NOT NULL,created_at INTEGER NOT NULL,UNIQUE(network_id,digest));
+CREATE TABLE reconciliation_rows(run_id TEXT NOT NULL REFERENCES reconciliation_runs(id),position INTEGER NOT NULL,reference TEXT NOT NULL,amount INTEGER NOT NULL,status TEXT NOT NULL,PRIMARY KEY(run_id,position));
+CREATE TABLE reconciliation_cases(id TEXT PRIMARY KEY,run_id TEXT NOT NULL REFERENCES reconciliation_runs(id),reference TEXT NOT NULL,reason TEXT NOT NULL,local_amount INTEGER,reported_amount INTEGER,state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open','reviewed')),version INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE reconciliation_reviews(id TEXT PRIMARY KEY,case_id TEXT NOT NULL REFERENCES reconciliation_cases(id),actor_id TEXT NOT NULL,note TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE INDEX reconciliation_network ON reconciliation_runs(network_id,created_at);

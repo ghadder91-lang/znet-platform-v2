@@ -1,0 +1,14 @@
+'use client';
+import {Check,Clock3,RefreshCw,AlertCircle,PlugZap} from 'lucide-react';
+type Props={status:string;reason?:string;categoryCount:number;stock:number;busy:boolean;onNavigate:(view:string)=>void;onRefresh:()=>void};
+export default function SetupChecklist({status,reason,categoryCount,stock,busy,onNavigate,onRefresh}:Props){
+ const approved=status==='active',rejected=status==='rejected';
+ const steps=[
+  {title:'بيانات الشبكة',done:true,note:'الاسم ورقم التواصل والموقع محفوظة.',action:'تعديل البيانات',view:'edit'},
+  {title:'فئات الكروت',done:categoryCount>0,note:categoryCount?`${categoryCount} فئة محفوظة. راجع السعر والحجم والصلاحية.`:'أضف سعر وحجم وصلاحية كل فئة.',action:categoryCount?'مراجعة الفئات':'إضافة أول فئة',view:categoryCount?'cards':'new-category'},
+  {title:'تجهيز المخزون',done:stock>0,note:stock?`${stock} كرت متاح في المخزون.`:'استورد الكروت بعد إضافة الفئات؛ لا يوجد مخزون متاح الآن.',action:stock?'مراجعة المخزون':categoryCount?'استيراد الكروت':'أضف فئة أولًا',view:stock?'inventory':categoryCount?'import':'new-category'},
+  {title:'مراجعة الإدارة',done:approved,note:approved?'تم اعتماد طلب الشبكة.':rejected?'يحتاج طلبك إلى تصحيح وإعادة إرسال.':'طلبك بانتظار المراجعة. يمكنك تجهيز الفئات والمخزون أثناء الانتظار.',action:rejected?'تصحيح وإعادة إرسال':undefined,view:'edit'}
+ ];
+ const count=steps.filter(s=>s.done).length;
+ return <section className="panel setup-checklist" aria-labelledby="setup-title"><div className="section-heading"><div><h2 id="setup-title">تهيئة الشبكة</h2><p className="setup-caption">{count===4?'اكتمل تجهيز الحساب والمخزون.':'أكمل بيانات شبكتك وفئاتها لتجهيز حسابك.'}</p></div><button className="button" disabled={busy} onClick={onRefresh}><RefreshCw size={16}/>تحديث الحالة</button></div><div className="setup-progress"><span>{count} من 4 خطوات مكتملة</span><progress value={count} max={4} aria-label="تقدم تهيئة الحساب والمخزون"/></div><ol className="setup-steps">{steps.map((s,i)=><li key={s.title} className={s.done?'complete':''}><span className="setup-number" aria-hidden="true">{s.done?<Check size={18}/>:i===3?<Clock3 size={18}/>:i+1}</span><div className="setup-content"><div className="setup-step-title"><h3>{s.title}</h3><span className={'badge '+(s.done?'active':rejected&&i===3?'rejected':'pending')}>{s.done?'مكتملة':i===3?(rejected?'تحتاج تصحيحًا':'بانتظار المراجعة'):'لم تكتمل'}</span></div><p>{s.note}</p>{rejected&&i===3&&<p className="review-reason">سبب الرفض: {reason||'راجع بيانات الشبكة.'}</p>}{s.action&&<button disabled={busy} className="button" onClick={()=>onNavigate(s.view)}>{s.action}</button>}</div></li>)}</ol><div className="setup-integrations"><PlugZap size={20}/><div><b>الربط والتشغيل التجاري</b><p>أعد اتصال MikroTik من تبويب الربط. المحافظ والتوليد الآلي غير مفعّلين؛ اكتمال التهيئة لا يفعّل البيع أو التحصيل.</p><button className="button" disabled={busy} onClick={()=>onNavigate('mikrotik')}>إعداد MikroTik</button></div><AlertCircle size={18}/></div></section>
+}
