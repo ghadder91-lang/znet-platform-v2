@@ -1,4 +1,5 @@
 'use client';
+import {subscribeJson} from '../lib/client-request';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {Search,Download,Eye,Pause,Play,ChevronRight,ChevronLeft} from 'lucide-react';
 type Cat={id:string;name:string;price:number;data_mb:number;hours:number;valid_days:number;low_threshold:number;stock:number};
@@ -8,12 +9,25 @@ type Filters={categoryId:string;status:string;username:string;batchId:string};
 const blank:Filters={categoryId:'',status:'',username:'',batchId:''};
 const date=(n:number)=>new Intl.DateTimeFormat('ar-YE',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Aden'}).format(n);
 export default function InventoryPanel({networkId,categories,onChanged,onReveal}:{networkId:string;categories:Cat[];onChanged:()=>Promise<void>;onReveal:(value:{username:string;password:string})=>void}){
-const [tab,setTab]=useState('cards'),[draft,setDraft]=useState<Filters>(blank),[applied,setApplied]=useState<Filters>(blank),[rows,setRows]=useState<Row[]>([]),[batches,setBatches]=useState<Batch[]>([]),[page,setPage]=useState(1),[total,setTotal]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[pending,setPending]=useState<Row|null>(null),[editing,setEditing]=useState<Cat|null>(null);
+const [tab,setTab]=useState('cards'),[draft,setDraft]=useState<Filters>(blank),[applied,setApplied]=useState<Filters>(blank),[rows,setRows]=useState<Row[]>([]),[batches,setBatches]=useState<Batch[]>([]),[page,setPage]=useState(1),[total,setTotal]=useState(0),[busy,setBusy]=useState(true),[error,setError]=useState(''),[success,setSuccess]=useState(''),[pending,setPending]=useState<Row|null>(null),[editing,setEditing]=useState<Cat|null>(null);
 const dialog=useRef<HTMLDialogElement>(null),request=useRef(0),locked=useRef(false);
 async function post<T>(op:string,data:Record<string,unknown>):Promise<T>{const res=await fetch('/api/core',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op,networkId,...data}),cache:'no-store'});const payload=await res.json() as T&{error?:string};if(!res.ok)throw Error(payload.error||'تعذر إتمام الطلب');return payload;}
 async function load(kind:string,p:number,f:Filters){const seq=++request.current;let result:{rows:Row[]|Batch[];total:number};if(kind==='batches'){const res=await fetch('/api/core?'+new URLSearchParams({op:'listBatches',networkId,page:String(p),categoryId:f.categoryId}),{cache:'no-store'});result=await res.json() as typeof result&{error?:string};if(!res.ok)throw Error((result as {error?:string}).error||'تعذر تحميل الدفعات');}else result=await post('inventory',{...f,page:p});if(seq!==request.current)return;if(kind==='batches')setBatches(result.rows as Batch[]);else setRows(result.rows as Row[]);setTotal(result.total);setPage(p);setApplied(f);}
 async function work(fn:()=>Promise<void>){if(locked.current)return;locked.current=true;setBusy(true);setError('');setSuccess('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'تعذر إتمام العملية')}finally{locked.current=false;setBusy(false)}}
-useEffect(()=>{let active=true;setBusy(true);load('cards',1,blank).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setBusy(false)});return()=>{active=false;request.current++};},[networkId]);
+useEffect(() => {
+ const sequence = ++request.current;
+ return subscribeJson<{rows: Row[]; total: number}>('/api/core', {
+  method: 'POST', headers: {'Content-Type': 'application/json'}, cache: 'no-store',
+  body: JSON.stringify({op: 'inventory', networkId, ...blank, page: 1}),
+ }, {
+  onData: result => {
+   if (sequence !== request.current) return;
+   setRows(result.rows); setTotal(result.total); setPage(1); setApplied(blank);
+  },
+  onError: e => {if (sequence === request.current) setError(e.message)},
+  onSettled: () => {if (sequence === request.current) setBusy(false)},
+ });
+}, [networkId]);
 useEffect(()=>{if(pending&&!dialog.current?.open)dialog.current?.showModal();else if(!pending)dialog.current?.close();},[pending]);
 function selectTab(next:string){void work(async()=>{if(next!=='categories')await load(next,1,blank);setTab(next);setDraft(blank);setApplied(blank);setEditing(null);});}
 async function exportReport(){const result=await post<{csv:string;count:number}>('exportInventory',applied);const url=URL.createObjectURL(new Blob([result.csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='ZNET_inventory_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setSuccess(`تم تصدير ${result.count} سجل بأرقام مخفية.`);}

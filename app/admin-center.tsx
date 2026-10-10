@@ -1,4 +1,5 @@
 'use client';
+import {subscribeJson} from '../lib/client-request';
 import {useEffect,useRef,useState} from 'react';
 import {Activity,ArrowRight,Building2,ShieldCheck,Search,RefreshCw,PauseCircle,PlayCircle,AlertCircle,Boxes} from 'lucide-react';
 type Network={id:string;name:string;phone:string;province:string;district:string;status:string;suspended_at:number|null;suspension_reason:string|null;control_version:number;owner_email:string;owner_name?:string;stock:number;category_count:number;incident_count:number;router_status:string};
@@ -17,7 +18,11 @@ export default function AdminCenter({onReview}:{onReview:()=>void}){
  async function get(query:Record<string,string>){const r=await fetch('/api/admin-center?'+new URLSearchParams(query),{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error);return d}
  async function load(page=1,f=applied){setData(await get({...f,page:String(page)}));setApplied(f)}
  async function work(fn:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'تعذر الاتصال')}finally{setBusy(false);lock.current=false}}
- useEffect(()=>{void load(1,defaults).catch(e=>setError(e.message)).finally(()=>setBusy(false))},[]);
+ useEffect(() => subscribeJson<Overview>(
+  '/api/admin-center?' + new URLSearchParams({...defaults, page: '1'}),
+  {cache: 'no-store'},
+  {onData: setData, onError: e => setError(e.message), onSettled: () => setBusy(false)},
+ ), []);
  useEffect(()=>{if(decision&&!dialog.current?.open)dialog.current?.showModal();else if(!decision)dialog.current?.close()},[decision]);
  async function open(id:string){await work(async()=>{setDetail(await get({networkId:id}));window.scrollTo(0,0)})}
  function choose(n:Network){setReason('');setDecision({network:n,action:n.suspended_at===null?'suspend':'resume'})}

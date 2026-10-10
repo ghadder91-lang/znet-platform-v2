@@ -1,6 +1,6 @@
 import {randomUUID,createHmac} from 'node:crypto';
 import {resolve} from 'node:path';
-import {database,openDatabase,transaction} from './database.mjs';
+import {openDatabase} from './database.mjs';
 import {vaultKey} from './config.mjs';
 import {deriveSandboxKey} from './vault.mjs';
 import {handleCore} from './core.mjs';
