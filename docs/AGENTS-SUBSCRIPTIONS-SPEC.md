@@ -1,6 +1,6 @@
 # Z NET — Agent subscriptions and activation specification (draft)
 
-Status: DESIGN ONLY. No agent billing, issuance, or activation endpoints are enabled by this document.
+Status: Database foundation added in drizzle/0011_agent_subscriptions.sql. No agent billing, issuance, or activation endpoints are enabled.
 
 ## Scope
 Agents sell Z NET application subscriptions only, not Wi-Fi cards. Admin can create/suspend agents, set a credit limit, approve subscription products, and inspect a tamper-evident audit trail. Agents can view their own balances and issue/renew subscriptions for network owners.
@@ -43,7 +43,7 @@ Constraints:
 - Reconciliation with existing activation service and mobile app identity.
 
 ## Open decisions requiring owner confirmation
-- Agent prepayment vs credit vs both.
+- APPROVED: both prepaid balance and admin-authorized credit limit. Spending power = posted ledger balance + credit limit. Activation must atomically reject spending power below price.
 - Whether subscription starts at payment/activation or after trial expiry.
 - Whether multiple devices per subscription are allowed.
 - Existing activation server protocol and licensing device identifier.
