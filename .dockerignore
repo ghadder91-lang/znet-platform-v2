@@ -7,3 +7,6 @@ data
 backups
 *.zip
 *.tsbuildinfo
+.sites-runtime
+outputs
+work
