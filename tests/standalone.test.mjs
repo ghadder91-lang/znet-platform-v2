@@ -43,11 +43,11 @@ test('last voucher cannot fulfill two pending orders; unmatched amount is accoun
  assert.equal(db.sql.prepare('SELECT COUNT(*) n FROM journals').get().n,2);assert.equal(db.sql.prepare("SELECT COUNT(*) n FROM orders WHERE status='paid'").get().n,1);db.sql.close();
 });
 test('on-disk database backup and restore preserve encrypted inventory; wrong key is rejected',async()=>{
- const dir=mkdtempSync(join(tmpdir(),'znet-restore-'));try{const source=join(dir,'source.sqlite'),db=openDatabase(source),s=await seed(db);const sealed=db.sql.prepare('SELECT sealed FROM vouchers').get().sealed;db.sql.close();
+ const dir=mkdtempSync(join(tmpdir(),'znet-restore-'));try{const source=join(dir,'source.sqlite'),db=openDatabase(source),s=await seed(db);const sealed=db.sql.prepare('SELECT sealed FROM vouchers').get().sealed;const migrationCount=db.sql.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n;db.sql.close();
  const env={...process.env,DATABASE_PATH:source,BACKUP_DIR:join(dir,'backups'),VOUCHER_VAULT_KEY:secret};
  const run=spawnSync(process.execPath,['scripts/backup.mjs'],{env,encoding:'utf8'});assert.equal(run.status,0,run.stderr);const backup=run.stdout.split('\n').find(x=>x.startsWith('Backup completed: ')).slice(18);
  const target=join(dir,'restored.sqlite');let restore=spawnSync(process.execPath,['scripts/restore.mjs',backup],{env:{...env,DATABASE_PATH:target,VOUCHER_VAULT_KEY:randomBytes(32).toString('base64')},encoding:'utf8'});assert.notEqual(restore.status,0);
  restore=spawnSync(process.execPath,['scripts/restore.mjs',backup],{env:{...env,DATABASE_PATH:target},encoding:'utf8'});assert.equal(restore.status,0,restore.stderr);
- const restored=openDatabase(target);assert.equal(restored.sql.prepare('SELECT sealed FROM vouchers').get().sealed,sealed);assert.equal(restored.sql.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n,11);restored.sql.close();
+ const restored=openDatabase(target);assert.equal(restored.sql.prepare('SELECT sealed FROM vouchers').get().sealed,sealed);assert.equal(restored.sql.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n,migrationCount);restored.sql.close();
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
