@@ -1,4 +1,5 @@
 'use client';
+import {subscribeJson} from '../lib/client-request';
 import {useEffect,useRef,useState} from 'react';
 import {Bell,CheckCircle2,Search,RefreshCw} from 'lucide-react';
 type Entry={id:string;category_id:string;network_id:string;category_name:string;network_name:string;name:string;owner_email:string;phone:string;province:string;status:string;review_note:string;stock:number;threshold:number;read_at:number|null;opened_at:number;updated_at:number;created_at:number;detail:string;event:string};
@@ -13,7 +14,25 @@ const seq=useRef(0),lock=useRef(false),dialog=useRef<HTMLDialogElement>(null);
 async function post(op:string,data:Record<string,unknown>){const res=await fetch('/api/core',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op,...data}),cache:'no-store'});const result=await res.json() as {rows:Entry[];total:number;error?:string};if(!res.ok)throw Error(result.error||'تعذر إتمام العملية');return result;}
 async function load(p:number,f:Filter){const n=++seq.current;let data:{rows:Entry[];total:number;error?:string};if(mode==='alerts')data=await post('notifications',{page:p,status:f.status});else{const qs=new URLSearchParams({op:mode==='admin'?'reviewQueue':'activity',page:String(p),...f,...(networkId?{networkId}:{})});const res=await fetch('/api/core?'+qs,{cache:'no-store'});data=await res.json() as typeof data;if(!res.ok)throw Error(data.error||'تعذر تحميل السجل');}if(seq.current!==n)return;setRows(data.rows);setTotal(data.total);setPage(p);setApplied(f);}
 async function work(fn:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'تعذر إتمام العملية')}finally{lock.current=false;setBusy(false)}}
-useEffect(()=>{let active=true;setBusy(true);load(1,defaults).catch(e=>active&&setError(e.message)).finally(()=>active&&setBusy(false));return()=>{active=false;seq.current++}},[mode,networkId]);
+useEffect(() => {
+ const initial: Filter = {status: mode === 'admin' ? 'pending' : 'open', search: '', event: '', from: '', to: ''};
+ const sequence = ++seq.current;
+ const url = mode === 'alerts' ? '/api/core' : '/api/core?' + new URLSearchParams({
+  op: mode === 'admin' ? 'reviewQueue' : 'activity', page: '1', ...initial, ...(networkId ? {networkId} : {}),
+ });
+ const options: RequestInit = mode === 'alerts' ? {
+  method: 'POST', headers: {'Content-Type': 'application/json'}, cache: 'no-store',
+  body: JSON.stringify({op: 'notifications', page: 1, status: initial.status}),
+ } : {cache: 'no-store'};
+ return subscribeJson<{rows: Entry[]; total: number}>(url, options, {
+  onData: result => {
+   if (sequence !== seq.current) return;
+   setRows(result.rows); setTotal(result.total); setPage(1); setApplied(initial);
+  },
+  onError: e => {if (sequence === seq.current) setError(e.message)},
+  onSettled: () => {if (sequence === seq.current) setBusy(false)},
+ });
+}, [mode, networkId]);
 useEffect(()=>{if(decision&&!dialog.current?.open)dialog.current?.showModal();else if(!decision)dialog.current?.close()},[decision]);
 const title=mode==='alerts'?'مركز التنبيهات':mode==='admin'?'مراجعة طلبات الشبكات':'سجل النشاط';
 return <section className="panel operations-panel"><div className="section-heading"><h2>{title}</h2><button className="button" disabled={busy} onClick={()=>work(()=>load(page,applied))}><RefreshCw size={16}/>تحديث</button></div>{mode==='alerts'&&<div className="ops-note">تُحدّث تنبيهات المخزون عند تعديل المخزون أو فتح هذه الصفحة. لا تُرسل رسائل خارجية.</div>}

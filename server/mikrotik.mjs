@@ -24,7 +24,7 @@ export const routerErrorLabels={SERVER_CONFIG:'إعداد وجهة الراوت�
 // verification is explicit and cannot be disabled by a browser or env override.
 export function restGet(endpoint,path,credentials,{timeoutMs=12000}={}){
  if(!['/rest/system/resource?.proplist=version,board-name,uptime,cpu-load,free-memory,total-memory','/rest/ip/hotspot/user/profile?.proplist=.id,name,rate-limit,session-timeout,idle-timeout,shared-users'].includes(path))throw new RouterError('RESPONSE');
- return new Promise((resolve,reject)=>{let settled=false,timer;const finish=(err,value)=>{if(settled)return;settled=true;clearTimeout(timer);err?reject(err):resolve(value)};
+ return new Promise((resolve,reject)=>{let settled=false,timer;const finish=(err,value)=>{if(settled)return;settled=true;clearTimeout(timer);if(err)reject(err);else resolve(value)};
  const req=https.request(endpoint+path,{method:'GET',agent:false,rejectUnauthorized:true,headers:{Accept:'application/json',Authorization:'Basic '+Buffer.from(credentials.username+':'+credentials.password,'utf8').toString('base64')}},res=>{
  if(res.statusCode!==200){res.resume();req.destroy();finish(new RouterError(res.statusCode>=300&&res.statusCode<400?'REDIRECT':[401,403].includes(res.statusCode)?'AUTH':'HTTP'));return}
  let size=0;const chunks=[];res.on('data',chunk=>{size+=chunk.length;if(size>524288){finish(new RouterError('TOO_LARGE'));req.destroy();return}chunks.push(chunk)});res.on('end',()=>{try{finish(null,JSON.parse(Buffer.concat(chunks).toString('utf8')))}catch{finish(new RouterError('RESPONSE'))}});res.on('error',()=>finish(new RouterError('NETWORK')));

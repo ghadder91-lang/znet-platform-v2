@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import {openDatabase} from '../server/database.mjs';
-import {approvedTarget,saveRouter,syncRouter,routerView,bindProfile,unbindProfile,disconnectRouter,RouterError,restGet} from '../server/mikrotik.mjs';
+import {approvedTarget,saveRouter,syncRouter,routerView,bindProfile,unbindProfile,disconnectRouter,restGet} from '../server/mikrotik.mjs';
 const key=randomBytes(32).toString('base64'),actor={userId:'a'},env={MIKROTIK_ENABLED:'true',MIKROTIK_TARGETS_JSON:JSON.stringify({n:'https://router.example.test'})},now=1800000000000;
 const save={networkId:'n',username:'znet-read',password:'router-secret-not-returned',expectedVersion:0};
 const resource={version:'7.20.1','board-name':'hAP','cpu-load':'5','free-memory':'100','total-memory':'1000',uptime:'1d2h'};

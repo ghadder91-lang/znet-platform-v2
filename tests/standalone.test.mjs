@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {openDatabase} from '../server/database.mjs';
-import {authRequest,sessionUser,createUser} from '../server/auth.mjs';
+import {authRequest,sessionUser} from '../server/auth.mjs';
 import {handleCore} from '../server/core.mjs';
 import {createOrder,recordVerifiedPayment,commerceOverview} from '../server/commerce.mjs';
 const origin='https://test.local',secret=randomBytes(32).toString('base64');
@@ -43,7 +43,7 @@ test('last voucher cannot fulfill two pending orders; unmatched amount is accoun
  assert.equal(db.sql.prepare('SELECT COUNT(*) n FROM journals').get().n,2);assert.equal(db.sql.prepare("SELECT COUNT(*) n FROM orders WHERE status='paid'").get().n,1);db.sql.close();
 });
 test('on-disk database backup and restore preserve encrypted inventory; wrong key is rejected',async()=>{
- const dir=mkdtempSync(join(tmpdir(),'znet-restore-'));try{const source=join(dir,'source.sqlite'),db=openDatabase(source),s=await seed(db);const sealed=db.sql.prepare('SELECT sealed FROM vouchers').get().sealed;db.sql.close();
+ const dir=mkdtempSync(join(tmpdir(),'znet-restore-'));try{const source=join(dir,'source.sqlite'),db=openDatabase(source);await seed(db);const sealed=db.sql.prepare('SELECT sealed FROM vouchers').get().sealed;db.sql.close();
  const env={...process.env,DATABASE_PATH:source,BACKUP_DIR:join(dir,'backups'),VOUCHER_VAULT_KEY:secret};
  const run=spawnSync(process.execPath,['scripts/backup.mjs'],{env,encoding:'utf8'});assert.equal(run.status,0,run.stderr);const backup=run.stdout.split('\n').find(x=>x.startsWith('Backup completed: ')).slice(18);
  const target=join(dir,'restored.sqlite');let restore=spawnSync(process.execPath,['scripts/restore.mjs',backup],{env:{...env,DATABASE_PATH:target,VOUCHER_VAULT_KEY:randomBytes(32).toString('base64')},encoding:'utf8'});assert.notEqual(restore.status,0);

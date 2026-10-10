@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import {subscribeJson} from '../lib/client-request';
 import IntegrationLab from './integration-lab';
 import FinancePanel from './finance-panel';
 import ForecastPanel from './forecast-panel';
@@ -8,7 +10,7 @@ import SetupChecklist from './setup-checklist';
 import InventoryPanel from './inventory-panel';
 import OperationsPanel from './operations-panel';
 import {useEffect,useState, type FormEvent, type ReactNode} from 'react';
-import {Wifi,Plus,Menu,X,LayoutDashboard,Boxes,FileClock,ShieldCheck,Upload,ArrowRight,LogOut,Eye,CheckCircle2,AlertCircle,RefreshCw} from 'lucide-react';
+import {Wifi,Plus,Menu,X,LayoutDashboard,Boxes,FileClock,ShieldCheck,Upload,ArrowRight,LogOut,Eye,CheckCircle2,AlertCircle} from 'lucide-react';
 type Net={suspended_at?:number|null;suspension_reason?:string|null;updated_at:number;id:string;name:string;phone:string;province:string;district:string;status:string;stock:number;category_count:number;review_note?:string;owner_email?:string};
 type Category={id:string;name:string;price:number;data_mb:number;hours:number;valid_days:number;low_threshold:number;stock:number};
 type Detail={network:Net;categories:Category[];batches:{id:string;count:number;created_at:number;category_name:string}[];audit:{id:string;event:string;detail:string;created_at:number}[]};
@@ -18,11 +20,16 @@ const time=(n:number)=>new Intl.DateTimeFormat('ar-YE',{dateStyle:'medium',timeS
 function Field({title,name,type='text',value,required=true,...rest}:{title:string;name:string;type?:string;value?:string|number;required?:boolean;min?:number;max?:number;placeholder?:string}){return <label className="field"><span>{title}</span><input name={name} type={type} defaultValue={value} required={required} {...rest}/></label>}
 function Empty({children}:{children:ReactNode}){return <div className="empty"><Boxes size={28}/><p>{children}</p></div>}
 export default function CoreApp({signedIn,signIn,signOut}:{signedIn:boolean;signIn:string;signOut:string}){
-const [boot,setBoot]=useState<{user:{name:string;email:string};isAdmin:boolean;networks:Net[]}|null>(null),[view,setView]=useState('networks'),[id,setId]=useState(''),[detail,setDetail]=useState<Detail|null>(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(signedIn),[error,setError]=useState(''),[success,setSuccess]=useState(''),[drawer,setDrawer]=useState(false),[admin,setAdmin]=useState<Net[]>([]),[raw,setRaw]=useState(''),[category,setCategory]=useState(''),[preview,setPreview]=useState<{total:number;newCount:number;duplicates:number}|null>(null),[requestKey,setRequestKey]=useState(''),[vouchers,setVouchers]=useState<{id:string;suffix:string;status:string}[]>([]),[revealed,setRevealed]=useState<{username:string;password:string}|null>(null);
+const [boot,setBoot]=useState<{user:{name:string;email:string};isAdmin:boolean;networks:Net[]}|null>(null),[view,setView]=useState('networks'),[id,setId]=useState(''),[detail,setDetail]=useState<Detail|null>(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(signedIn),[error,setError]=useState(''),[success,setSuccess]=useState(''),[drawer,setDrawer]=useState(false),[raw,setRaw]=useState(''),[category,setCategory]=useState(''),[preview,setPreview]=useState<{total:number;newCount:number;duplicates:number}|null>(null),[requestKey,setRequestKey]=useState(''),[vouchers,setVouchers]=useState<{id:string;suffix:string;status:string}[]>([]),[revealed,setRevealed]=useState<{username:string;password:string}|null>(null);
 async function api<O extends keyof Replies>(op:O,data?:Record<string,unknown>):Promise<Replies[O]>{const res=await fetch(data?'/api/core':'/api/core?'+new URLSearchParams({op}),{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:undefined,body:data?JSON.stringify({op,...data}):undefined,cache:'no-store'});const payload=await res.json() as Replies[O] & {error?:string};if(!res.ok)throw new Error(payload.error||'تعذر إتمام العملية');return payload;}
 async function get<O extends keyof Replies>(op:O,params:Record<string,string>):Promise<Replies[O]>{const res=await fetch('/api/core?'+new URLSearchParams({op,...params}),{cache:'no-store'});const data=await res.json() as Replies[O] & {error?:string};if(!res.ok)throw new Error(data.error||'تعذر تحميل البيانات');return data;}
 async function reload(){setBoot(await api('bootstrap'));}
-useEffect(()=>{if(signedIn)reload().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[signedIn]);
+useEffect(() => {
+ if (!signedIn) return;
+ return subscribeJson<Replies['bootstrap']>('/api/core?op=bootstrap', {cache: 'no-store'}, {
+  onData: setBoot, onError: e => setError(e.message), onSettled: () => setLoading(false),
+ });
+}, [signedIn]);
 async function task(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');setSuccess('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'تعذر إتمام العملية')}finally{setBusy(false)}}
 function nav(v:string){setView(v);setDrawer(false);setError('');setSuccess('');setRevealed(null);window.scrollTo(0,0);}
 async function openNet(networkId:string,v='overview'){await task(async()=>{const d=await get('network',{networkId});setDetail(d);setId(networkId);setCategory(d.categories[0]?.id||'');setRaw('');setPreview(null);setRequestKey('');nav(v);});}
@@ -31,7 +38,7 @@ function submit(e:FormEvent<HTMLFormElement>,fn:(data:Record<string,string>)=>Pr
 async function loadBatch(batchId:string){await task(async()=>{const result=await get('vouchers',{networkId:id,batchId});setVouchers(result.vouchers);nav('batch');});}
 function changeRaw(value:string){setRaw(value);setPreview(null);setRequestKey('');}
 const total=detail?.categories.reduce((a,c)=>a+c.stock,0)||0;
-return <><header className="top"><a className="wordmark" href="/">زد نت<small>Z NET NETWORK</small></a><div className="top-tools">{signedIn?<><span className="desktop-only">{boot?.user.name||'حساب الشبكة'}</span><button className="iconbutton" onClick={()=>setDrawer(!drawer)} aria-label="فتح القائمة"><Menu/></button></>:<a href="/login" className="light-link">دخول صاحب الشبكة</a>}</div></header>
+return <><header className="top"><Link className="wordmark" href="/">زد نت<small>Z NET NETWORK</small></Link><div className="top-tools">{signedIn?<><span className="desktop-only">{boot?.user.name||'حساب الشبكة'}</span><button className="iconbutton" onClick={()=>setDrawer(!drawer)} aria-label="فتح القائمة"><Menu/></button></>:<a href="/login" className="light-link">دخول صاحب الشبكة</a>}</div></header>
 {!signedIn?<main className="welcome"><div className="welcome-mark"><Wifi size={38}/></div><h1>إدارة شبكاتك تبدأ من هنا</h1><p>أضف شبكتك، نظّم الفئات، واستورد الكروت في حسابك الخاص.</p><section className="panel login-panel"><h2>تسجيل الدخول</h2><p>ادخل ببريدك وكلمة المرور لإدارة شبكاتك.</p><a className="button primary full" href={signIn} target="_top">تسجيل الدخول إلى زد نت</a><div className="footnote">تسجيل الهاتف وربط المحافظ غير مفعّلين بعد.</div></section></main>:<div className="app-layout">
 {drawer&&<button className="scrim" aria-label="إغلاق القائمة" onClick={()=>setDrawer(false)}/>}
 <aside className={'sidebar '+(drawer?'shown':'')}><div className="sidebar-heading">مساحة العمل<button className="iconbutton mobile-only" onClick={()=>setDrawer(false)} aria-label="إغلاق"><X/></button></div><button className={view==='networks'?'selected':''} onClick={()=>nav('networks')}><LayoutDashboard/>شبكاتي</button><button onClick={()=>nav('new-network')}><Plus/>إضافة شبكة</button><button onClick={()=>nav('lab')}><ShieldCheck/>مختبر الربط</button><button onClick={()=>nav('alerts')}><AlertCircle/>مركز التنبيهات</button>{id&&<><button onClick={()=>nav('cards')}><Boxes/>مخزون الشبكة</button><button onClick={()=>nav('audit')}><FileClock/>سجل النشاط</button></>}{boot?.isAdmin&&<button onClick={()=>nav('command')}><ShieldCheck/>مركز القيادة</button>}{boot?.isAdmin&&<button onClick={()=>nav('admin')}><ShieldCheck/>إدارة طلبات الشبكات</button>}<div className="sidebar-bottom"><a href={signOut} target="_top"><LogOut size={18}/> تسجيل الخروج</a><small>{boot?.user.email}</small></div></aside>
