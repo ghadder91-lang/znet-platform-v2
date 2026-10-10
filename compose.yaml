@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_PATH: /app/data/znet.sqlite
       BACKUP_DIR: /app/backups
+      SANDBOX_DATABASE_PATH: /app/data/sandbox.sqlite
     volumes:
       - znet_data:/app/data
       - znet_backups:/app/backups

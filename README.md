@@ -85,14 +85,14 @@ docker compose cp app:/app/backups ./backups-local
 
 الأفضل الاستعادة على تثبيت جديد بقاعدة فارغة:
 
-1. استخدم `.env` الأصلي، وأوقف خدمة التطبيق.
+1. استخدم `.env` الأصلي، وأوقف التطبيق والعاملين حتى لا تبقى اتصالات أو كتابات أثناء الاستعادة.
 2. ضع مجلد النسخة على الخادم في `restore-input`.
 3. نفذ:
 
 ```sh
-docker compose stop app
-docker compose run --rm -v "$PWD/restore-input:/restore:ro" app node scripts/restore.mjs /restore
-docker compose up -d app
+docker compose stop app delivery-worker forecast-worker
+docker compose run --rm --no-deps -v "$PWD/restore-input:/restore:ro" app node scripts/restore.mjs /restore
+docker compose up -d app delivery-worker forecast-worker
 ```
 
 يرفض الأمر استبدال قاعدة موجودة، أو نسخة تالفة، أو مفتاح غير مطابق. إن كانت قاعدة قديمة موجودة، احتفظ بها ومرفقاتها WAL/SHM في مكان آمن قبل تجهيز volume جديد؛ لا تحذف بيانات إنتاج لتجربة الاستعادة. لا تستخدم `docker compose down -v` على إنتاج لأن ذلك يحذف volumes.
