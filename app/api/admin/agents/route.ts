@@ -6,17 +6,17 @@ import {createAgent,adjustAgent,agentBalance} from '../../../../server/agents.mj
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
-const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
-export async function GET(req){
+const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
+export async function GET(req:Request){
  const db=database(),actor=sessionUser(db,req.headers.get('cookie')||'');
  if(!actor)return json({error:'سجل الدخول'},401);
  try{
   const id=new URL(req.url).searchParams.get('agentId');
   if(!id)return json({error:'حدد الوكيل'},400);
   return json(agentBalance(db,actor,id));
- }catch(e){return json({error:e.status?e.message:'تعذر قراءة حساب الوكيل'},e.status||400)}
+ }catch(e){const err=e as Error&{status?:number};return json({error:err.status?err.message:'تعذر قراءة حساب الوكيل'},err.status||400)}
 }
-export async function POST(req){
+export async function POST(req:Request){
  const db=database(),actor=sessionUser(db,req.headers.get('cookie')||'');
  if(!actor)return json({error:'سجل الدخول'},401);
  if(req.headers.get('origin')!==appOrigin())return json({error:'مصدر غير مسموح'},403);
@@ -27,5 +27,5 @@ export async function POST(req){
   if(body.op==='createAgent')return json(createAgent(db,actor,body),201);
   if(body.op==='adjustAgent')return json(adjustAgent(db,actor,body));
   return json({error:'عملية غير مدعومة'},400);
- }catch(e){return json({error:e.status?e.message:'تعذر تنفيذ العملية'},e.status||400)}
+ }catch(e){const err=e as Error&{status?:number};return json({error:err.status?err.message:'تعذر تنفيذ العملية'},err.status||400)}
 }
