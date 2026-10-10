@@ -26,3 +26,5 @@ jobs:
       - run: pnpm smoke
       - name: Check Docker image build
         run: docker build --tag znet-review:${{ github.sha }} .
+      - name: Verify container runtime and recovery
+        run: node scripts/docker-smoke.mjs znet-review:${{ github.sha }}
