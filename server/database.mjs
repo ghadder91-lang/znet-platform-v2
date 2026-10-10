@@ -4,7 +4,8 @@ import {dirname,resolve} from 'node:path';
 export function openDatabase(path=process.env.DATABASE_PATH||'./data/znet.sqlite'){
  if(path!==':memory:')mkdirSync(dirname(resolve(path)),{recursive:true,mode:0o700});
  const sql=new DatabaseSync(path);if(path!==':memory:')chmodSync(path,0o600);
- sql.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
+ sql.exec('PRAGMA busy_timeout=5000;');
+ sql.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
  sql.exec('CREATE TABLE IF NOT EXISTS schema_migrations(name TEXT PRIMARY KEY,applied_at INTEGER NOT NULL)');
  for(const name of readdirSync(resolve('drizzle')).filter(x=>x.endsWith('.sql')).sort()){
   sql.exec('BEGIN IMMEDIATE');try{if(!sql.prepare('SELECT name FROM schema_migrations WHERE name=?').get(name)){sql.exec(readFileSync(resolve('drizzle',name),'utf8'));sql.prepare('INSERT INTO schema_migrations VALUES(?,?)').run(name,Date.now());}sql.exec('COMMIT');}catch(e){sql.exec('ROLLBACK');throw e;}
